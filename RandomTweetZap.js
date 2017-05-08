@@ -33,9 +33,9 @@ console.log("textToTweet: "+textToTweet);
 
 /** send a tweet **/
 /* needs Single-user OAuth */
-var twitterApplicationConsumerKey = ''; // Located in the "Application Settings" section
-var twitterApplicationConsumerSecret = ''; // Located in the "Application Settings" section
-var twitterApplicationAccessToken = ''; // Located in the "Your Access Token" section
+var twitterApplicationConsumerKey = '';       // Located in the "Application Settings" section
+var twitterApplicationConsumerSecret = '';    // Located in the "Application Settings" section
+var twitterApplicationAccessToken = '';       // Located in the "Your Access Token" section
 var twitterApplicationAccessTokenSecret = ''; // Located in the "Your Access Token" section
 
 
