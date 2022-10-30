@@ -1,3 +1,9 @@
+/*
+* A Google Script to be run as a Custom Function in a Sheet that
+* finds all files that are shared and
+* displays the file's: name, URL, access, viewers' email addresses, editors' email addresses
+* https://developers.google.com/apps-script/guides/sheets/functions
+*/
 function catalogDrive() {
 
   var files = DriveApp.getFiles();
@@ -27,7 +33,8 @@ function catalogDrive() {
       );
     }
   }
-
+  
+  /* Display the results */
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   sheet.clear();
   sheet.setName("Shared Files");
