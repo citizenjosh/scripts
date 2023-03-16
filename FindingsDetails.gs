@@ -3,7 +3,7 @@
 * via GraphQL API and
 * put them in a Google Sheet
 *
-* NOTE: to change the quantity of results, manually change the values in "variables" on #153
+* NOTE: to change the quantity of results, manually change the values in "variables" on #155
 */
 function getAllFindings() {
   /*
