@@ -1,23 +1,53 @@
 /*
-* Get scan history from BoostSecurity
+* Create a scan attestation report from BoostSecurity
 *
 * IMPORTANT
 * Assumes the Google Sheet it is sending information to is named "Scan Attestation", has 2 frozen rows at the top, and has a start date and and end date in cells B1 and D1 respectively as is shown in line 202
 * See a sample at https://docs.google.com/spreadsheets/d/e/2PACX-1vT5obGg7P4ckbnfvgZ8n_Bn3gkBNfFRTgTvjfCKztB0s0oZYAkEtOWg_B3Z1e1eTOGmGDjn2T52ZEwo/pubhtml?gid=950015480&single=true
 */
+
+// Constants
+const SHEET_NAME = "Scan Attestation";
+const API_URL = "https://api.boostsecurity.io/analysis-history/graphql";
+const API_KEY = PropertiesService.getScriptProperties().getProperty("apiKey");
+const DATE_FORMAT = "yyyy-MM-dd";
+const AUTHORIZATION_HEADER = "ApiKey " + API_KEY;
+const COLUMNS = ["Timestamp", "Repo", "Scanner", "Successful"];
+
+/**
+ * Get scan history from BoostSecurity
+ */
 function getScanHistory() {
-  /*
-  * Get date range
-  */
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scan Attestation");
-  var startDate = Utilities.formatDate( sheet.getRange("B1").getValue(), "GMT", "yyyy-MM-dd" );
-  var endDate   = Utilities.formatDate( sheet.getRange("D1").getValue(), "GMT", "yyyy-MM-dd" );
+  // Get date range
+  const {startDate, endDate} = getDateRange();
 
-  /*
-  * Prepar the query
-  */
-  let url = "https://api.boostsecurity.io/analysis-history/graphql";
+  // Call the API
+  const arrayOfFindingsDetails = callBoostSecurityAPI(startDate, endDate);
 
+  // Display the findings
+  displayFindingsInSpreadsheet(arrayOfFindingsDetails);
+}
+
+/**
+ * Retrieves the start and end date from the Google Sheet
+ * @returns {Object} An object containing the start and end dates
+ */
+function getDateRange() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const startDate = Utilities.formatDate(sheet.getRange("B1").getValue(), "GMT", DATE_FORMAT);
+  const endDate = Utilities.formatDate(sheet.getRange("D1").getValue(), "GMT", DATE_FORMAT);
+
+  return {startDate, endDate};
+}
+
+/**
+ * Makes a call to the BoostSecurity API and retrieves the scan findings
+ * @param {Date} startDate - The start date for the data retrieval
+ * @param {Date} endDate - The end date for the data retrieval
+ * @returns {Array} An array of scan findings
+ */
+function callBoostSecurityAPI(startDate, endDate) {
+  // Prepare the query
   let graphql = JSON.stringify({
 
     /* Findings Details */
@@ -159,54 +189,47 @@ function getScanHistory() {
       "toDate": endDate
     },
   });
-  /*
-  * Call the API
-  */
+
   let params = {
     method: "POST",
     payload: graphql,
     headers: {
       "Content-Type": "application/json",
-      Authorization: "ApiKey " + PropertiesService.getScriptProperties().getProperty("apiKey"),
+      Authorization: AUTHORIZATION_HEADER,
     },
   };
-  var responseText = UrlFetchApp.fetch(url, params).getContentText();
 
-  /* 
-  * get only the desired information
-  */
+  // Error handling for API call
+  try {
+    var responseText = UrlFetchApp.fetch(API_URL, params).getContentText();
+  } catch (error) {
+    console.error("Error fetching data from BoostSecurity API: ", error);
+    return [];
+  }
+
+  // Process the response
   var arrayOfFindings = JSON.parse(responseText).data.analyses.edges.map(f => f.node);
-  var arrayOfFindingsDetails = arrayOfFindings.map(f => Object.values({
-    timestamp: Utilities.formatDate(new Date(f.timestamp), "GMT", "yyyy-MM-dd"),
+  return arrayOfFindings.map(f => Object.values({
+    timestamp: Utilities.formatDate(new Date(f.timestamp), "GMT", DATE_FORMAT),
     repository: (f.asset.scmProvider +"."+ f.asset.organizationName +"."+ f.asset.repositoryName),
     scanner: f.analyzer.analyzerName,
     status: f.status.statusName
   }));
-
-  /*
-  * Display the findings
-  */
-  displayFindingsInSpreadsheet(arrayOfFindingsDetails);
 }
 
-
-
-
-/*
-* Display the findings from BoostSecurity
-* @param {multi-dimensional array} rows of each finding's data
-*/
+/**
+ * Displays the scan findings in the Google Sheet
+ * @param {Array} boostSecurityFindings - An array of findings from the BoostSecurity API
+ * @returns {void}
+ */
 function displayFindingsInSpreadsheet(boostSecurityFindings) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scan Attestation");
-  // prepare sheet
-  /* No need to recreate the header each time
-  sheet.setName("BoostSecurity Scan Attestation");
-  sheet.appendRow(["Timestamp", "Repo", "Scanner", "Successful"]);
-  sheet.setFrozenRows(2);
-*/
-  // clear current contents
-  sheet.getRange(3,1,sheet.getMaxRows(),4).clear();
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
 
-  // add values
-  sheet.getRange(3, 1, boostSecurityFindings.length, 4).setValues( boostSecurityFindings );
+  // Clear current contents
+  sheet.getRange(3, 1, sheet.getMaxRows(), COLUMNS.length).clear();
+
+  // Add values
+  sheet.getRange(3, 1, boostSecurityFindings.length, COLUMNS.length).setValues(boostSecurityFindings);
 }
+
+
