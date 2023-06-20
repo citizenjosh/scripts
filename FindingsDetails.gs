@@ -1,18 +1,26 @@
-/*
+/**
 * Get finding details from BoostSecurity
 * via GraphQL API and
 * put them in a Google Sheet
 *
-* NOTE: to change the quantity of results, manually change the values in "variables" on #155
+* NOTE: to change the number of results, manually change the values in "variables" on #155
 */
-function getAllFindings() {
-  /*
-  * Prepar the query
-  */
-  let url = "https://api.boostsecurity.io/findings-view/graphql";
-  let graphql = JSON.stringify({
 
-    /* Findings Details */
+/**
+ * Global Constants
+ */
+const API_URL = "https://api.boostsecurity.io/findings-view/graphql";
+const API_KEY = PropertiesService.getScriptProperties().getProperty("apiKey");
+const AUTHORIZATION_HEADER = "ApiKey " + API_KEY;
+const SHEET_NAME = "BoostSecurity Finding Details";
+const HEADERS = ["Finding ID", "Rule Name", "Scanner", "Suppression(s)", "URL"];
+
+/**
+ * Prepare the GraphQL query
+ * @returns {string} The GraphQL query as a string
+ */
+function prepareQuery() {
+  return JSON.stringify({
     query: `query (
     $filters: FindingsFiltersSchema,
     $first: Int,
@@ -31,180 +39,111 @@ function getAllFindings() {
         page: $page,
         locateFindingId: $locateFindingId    
    ) {
-      totalCount
       edges {
         node {
-          timestamp
           findingId
-          ruleDescription
           ruleName
-          originalRuleId
-          uri
-          isViolation
-          severity
-          confidence
-          docRef
-          categories {
-             name
-             prettyName
-             ref
-          }
-          description
           analysisContext {
             analyzerName
-            organizationName
-            projectName
-            commitId
-            scmProvider
-            baseUrl
           }
-          prettyRuleName
-          prettyDescription
+          suppressions {
+            suppressionType
+          }
           scmLink {
-            text
             href
           }
-          meta {
-            name
-            value
-          }
-          findingContextId
-          suppressions {
-            suppressionTagId
-            suppressionType
-            justification
-            mutable
-          }
-          vulnerabilityIdentifiers { value }
-          details {
-            __typename
-            ... on SastDetails {
-                fileLocation {
-                  uri
-                  scmVersioned
-                  startLineNumber
-                  startColumnNumber
-                  endLineNumber
-                  endColumnNumber
-                }
-            }
-            ... on ScaDetails {
-                package {
-                  name
-                  ecosystem
-                }
-                requirement
-                manifestFileLocation {
-                  uri
-                  scmVersioned
-                  startLineNumber
-                  startColumnNumber
-                  endLineNumber
-                  endColumnNumber
-                }
-                impactedVersions
-                cvssScore
-                advisoryLink
-                cve
-            }
-            ... on CicdDetails {
-                repositoryName
-            }
-            ... on ContainerScanningDetails {
-                vulnerabilityId
-                imageName
-                imageVersion
-                tags
-                layerId
-                requirement
-                impactedVersions
-                cvssScore
-                advisoryLink
-                package {
-                    name
-                    ecosystem
-                }
-            }
-          }
         }
-        cursor
-      }
-      filters {
-        ruleName { value count displayValue }
-        viewerAssetId { value count displayValue }
-        suppressionTag { value count }
-        isViolation { value count }
-        processingStatus { value count }
-        scannerId { value count displayValue }
-        securityCategories { value count }
-        severities { value count }
-        confidences { value count }
-        vulnerabilityIdentifiers { value count }
-      }
-      pageInfo {
-        hasNextPage
-        hasPreviousPage
-        startCursor
-        endCursor
       }
     }
   }`,
-    /*
-    * Filter results
-    */
     variables: {
-      "first": 5,
-      "page": 2
+      "first": 3, // number of findings to retrieve
+      "page": 1   // from which page of results to retrieve findings
     },
   });
-  /*
-  * Call the API
-  */
-  let params = {
-    method: "POST",
-    payload: graphql,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "ApiKey " + PropertiesService.getScriptProperties().getProperty("apiKey"),
-    },
-  };
-  var responseText = UrlFetchApp.fetch(url, params).getContentText();
-
-  /* 
-  * get only the desired information
-  */
-  var arrayOfFindings = JSON.parse(responseText).data.findings.edges.map(f => f.node);
-  var arrayOfFindingsDetails = arrayOfFindings.map(f => Object.values({
-    findingId: f.findingId,
-    ruleName: f.ruleName,
-    analysisContext: f.analysisContext.analyzerName,
-    suppressions: f.suppressions.join(","),
-    scmLink: f.scmLink.href
-  }));
-
-  /*
-  * Display the findings
-  */
-  displayFindingsInSpreadsheet(arrayOfFindingsDetails);
 }
 
+/**
+ * Fetch data from the API
+ * @param {string} query - The GraphQL query to send to the API
+ * @returns {object} The response from the API as a JavaScript object
+ */
+function fetchData(query) {
+  let params = {
+    method: "POST",
+    payload: query,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: AUTHORIZATION_HEADER,
+    },
+  };
+  
+  try {
+    var responseText = UrlFetchApp.fetch(API_URL, params).getContentText();
+    return JSON.parse(responseText);
+  } catch (error) {
+    console.error("Error fetching data from API: ", error);
+    return null;
+  }
+}
 
+/**
+ * Parse the response from the API
+ * @param {object} response - The response from the API
+ * @returns {array} The parsed findings
+ */
+function parseResponse(response) {
+  if (response && response.data && response.data.findings) {
+    return response.data.findings.edges.map(f => f.node)
+      .map(f => ({
+        findingId: f.findingId,
+        ruleName: f.ruleName,
+        analysisContext: f.analysisContext.analyzerName,
+        suppressions: f.suppressions.map(s => s.suppressionType).join(","),
+        scmLink: f.scmLink.href
+      }));
+  } else {
+    console.error("Invalid response from API");
+    return [];
+  }
+}
 
-
-/*
-* Display the findings from BoostSecurity
-* @param {multi-dimensional array} rows of each finding's demographical data
-*/
-function displayFindingsInSpreadsheet(boostSecurityFindings) {
-
+/**
+ * Display the findings in a Google Sheet
+ * @param {array} boostSecurityFindings - The findings to display
+ */
+function displayFindings(boostSecurityFindings) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  // prepare sheet
+  
+  // Prepare sheet
   sheet.clear();
-  sheet.setName("BoostSecurity Finding Details");
-  sheet.appendRow(["Finding ID", "Rule Name", "Scanner", "Suppression(s)", "URL"]);
+  sheet.setName(SHEET_NAME);
+  sheet.appendRow(HEADERS);
   sheet.getRange(1,1,1,sheet.getMaxColumns()).setFontWeight("bold");
   sheet.setFrozenRows(1);
 
-  // add values
-  sheet.getRange(2, 1, boostSecurityFindings.length, 5).setValues(boostSecurityFindings);
+  // Add values
+  let findingsArray = boostSecurityFindings.map(finding => [
+    finding.findingId,
+    finding.ruleName,
+    finding.analysisContext,
+    finding.suppressions,
+    finding.scmLink
+  ]);
+  
+    if (findingsArray.length > 0) {
+    sheet.getRange(2, 1, findingsArray.length, HEADERS.length).setValues(findingsArray);
+  } else {
+    console.error("No findings to display");
+  }
+}
+
+/**
+ * Main function to get all findings
+ */
+function getAllFindings() {
+  let graphqlQuery = prepareQuery();
+  let response = fetchData(graphqlQuery);
+  let findings = parseResponse(response);
+  displayFindings(findings);
 }
