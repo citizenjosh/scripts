@@ -100,7 +100,7 @@ function fetchData(query) {
       Authorization: AUTHORIZATION_HEADER,
     },
   };
-  
+
   try {
     var responseText = UrlFetchApp.fetch(API_URL, params).getContentText();
     return JSON.parse(responseText);
@@ -137,12 +137,12 @@ function parseResponse(response) {
  */
 function displayFindings(boostSecurityFindings) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  
+
   // Prepare sheet
   sheet.clear();
   sheet.setName(SHEET_NAME);
   sheet.appendRow(HEADERS);
-  sheet.getRange(1,1,1,sheet.getMaxColumns()).setFontWeight("bold");
+  sheet.getRange(1, 1, 1, sheet.getMaxColumns()).setFontWeight("bold");
   sheet.setFrozenRows(1);
 
   // Add values
@@ -153,8 +153,8 @@ function displayFindings(boostSecurityFindings) {
     finding.suppressions,
     finding.scmLink
   ]);
-  
-    if (findingsArray.length > 0) {
+
+  if (findingsArray.length > 0) {
     sheet.getRange(2, 1, findingsArray.length, HEADERS.length).setValues(findingsArray);
   } else {
     console.error("No findings to display");
