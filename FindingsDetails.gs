@@ -11,11 +11,11 @@
 * 1. At https://docs.google.com/spreadsheets create a new Sheet
 * 2. In the Sheet, go to "Extensions" > "App Script"
 * 3. Create a new App Script using the contents of this file
-* 5. In Project Settings: Script Properties, click "Add script property"
-* 5.1. In https://app.boostsecurity.io/settings?tab=Application+Keys generate a key
-* 5.2. Set: Property = apiKey, Value = [key generate in previous step]
-* 6. Click "Deploy" > "New Deployment" and "Select type" > "Library". Click "Deploy"
-* 7. Click "Run"
+* 4. In Project Settings: Script Properties, click "Add script property"
+* 4.1. In https://app.boostsecurity.io/settings?tab=Application+Keys generate a key
+* 4.2. Set: Property = apiKey, Value = [key generate in previous step]
+* 5. Click "Deploy" > "New Deployment" and "Select type" > "Library". Click "Deploy"
+* 6. Click "Run"
 * To run automatically, create a trigger per https://developers.google.com/apps-script/guides/triggers/installable#managing_triggers_manually
 */
 
