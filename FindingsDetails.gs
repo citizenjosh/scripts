@@ -3,17 +3,30 @@
 * via GraphQL API and
 * put them in a Google Sheet
 *
-* NOTE: to change the number of results, manually change the values in "variables" on line 59
+* NOTE: to change the number of results, 
+*     change the values in "variables" on line 72 or
+*     change the query on line 55
+* 
+* DEPLOYMENT
+* 1. At https://docs.google.com/spreadsheets create a new Sheet
+* 2. In the Sheet, go to "Extensions" > "App Script"
+* 3. Create a new App Script using the contents of this file
+* 5. In Project Settings: Script Properties, click "Add script property"
+* 5.1. In https://app.boostsecurity.io/settings?tab=Application+Keys generate a key
+* 5.2. Set: Property = apiKey, Value = [key generate in previous step]
+* 6. Click "Deploy" > "New Deployment" and "Select type" > "Library". Click "Deploy"
+* 7. Click "Run"
+* To run automatically, create a trigger per https://developers.google.com/apps-script/guides/triggers/installable#managing_triggers_manually
 */
 
 /**
  * Global Constants
  */
+const SHEET_NAME = "BoostSecurity Finding Details";
+const HEADERS = ["Finding ID", "Rule Name", "Scanner", "Suppression(s)", "URL"];
 const API_URL = "https://api.boostsecurity.io/findings-view/graphql";
 const API_KEY = PropertiesService.getScriptProperties().getProperty("apiKey");
 const AUTHORIZATION_HEADER = "ApiKey " + API_KEY;
-const SHEET_NAME = "BoostSecurity Finding Details";
-const HEADERS = ["Finding ID", "Rule Name", "Scanner", "Suppression(s)", "URL"];
 
 /**
  * Prepare the GraphQL query
@@ -61,6 +74,16 @@ function prepareQuery() {
       "page": 1   // from which page of results to retrieve findings
     },
   });
+}
+
+/**
+ * MAIN function to get all findings
+ */
+function getAllFindings() {
+  let graphqlQuery = prepareQuery();
+  let response = fetchData(graphqlQuery);
+  let findings = parseResponse(response);
+  displayFindings(findings);
 }
 
 /**
@@ -136,14 +159,4 @@ function displayFindings(boostSecurityFindings) {
   } else {
     console.error("No findings to display");
   }
-}
-
-/**
- * Main function to get all findings
- */
-function getAllFindings() {
-  let graphqlQuery = prepareQuery();
-  let response = fetchData(graphqlQuery);
-  let findings = parseResponse(response);
-  displayFindings(findings);
 }
