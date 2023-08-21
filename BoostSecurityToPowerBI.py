@@ -30,6 +30,9 @@ def get_findings_with_offset(offset):
                         analysisContext {
                             projectName
                         }
+                        scmLink {
+                            href
+                        }
                     }
                     cursor
                 }
@@ -80,6 +83,7 @@ for edge in all_data:
         'findingId': node['findingId'],
         'isViolation': node['isViolation'],
         'projectName': node['analysisContext']['projectName'],
+        'fileUri': node['scmLink']['href'],
         'cursor': edge['cursor']
     })
 
